@@ -11,6 +11,7 @@ locals {
     "125.180.153.109/32",     // zzingo home
     "211.192.203.180/32"      // office
   ]
+  lb_controller_service_account_name = "aws-load-balancer-controller"
 }
 
 ///
@@ -60,7 +61,6 @@ resource "aws_iam_role" "eks_cluster_role" {
     ]
   })
 }
-
 
 module "eks" {
   source                          = "terraform-aws-modules/eks/aws"
@@ -142,6 +142,125 @@ provider "helm" {
     cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
   }
 }
+
+///
+/// AWS Load Balancer Controller
+///
+module "lb_controller_role" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
+
+  create_role = true
+
+  role_name        = "eks-load-balancer-controlle"
+  role_path        = "/"
+  role_description = "Used by AWS Load Balancer Controller for EKS"
+
+  role_permissions_boundary_arn = ""
+
+  provider_url = replace(module.eks.cluster_oidc_issuer_url, "https://", "")
+  oidc_fully_qualified_subjects = [
+    "system:serviceaccount:kube-system:aws-load-balancer-controller"
+  ]
+  oidc_fully_qualified_audiences = [
+    "sts.amazonaws.com"
+  ]
+}
+
+data "http" "iam_policy" {
+  url = "https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.0/docs/install/iam_policy.json"
+}
+
+resource "aws_iam_role_policy" "controller" {
+  name_prefix = "AWSLoadBalancerControllerIAMPolicy"
+  policy      = data.http.iam_policy.body
+  role        = module.lb_controller_role.iam_role_name
+}
+
+resource "helm_release" "aws_load_balancer_controller" {
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+
+  create_namespace = true
+
+  set {
+    name  = "clusterName"
+    value = local.cluster_name
+  }
+
+  set {
+    name  = "region"
+    value = local.region
+  }
+
+  set {
+    name  = "vpcId"
+    value = module.vpc.vpc_id
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.lb_controller_role.iam_role_arn
+  }
+
+  set {
+    name  = "image.repository"
+    value = "602401143452.dkr.ecr.ap-northeast-2.amazonaws.com/amazon/aws-load-balancer-controller"
+  }
+}
+
+///
+/// Argo CD
+/// 
+resource "helm_release" "argocd" {
+  name       = "argo-cd"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-cd"
+  namespace  = "argocd"
+
+  create_namespace = true
+
+  set {
+    name  = "server.service.type"
+    value = "LoadBalancer"
+  }
+
+  set {
+    name  = "controller.replicaCount"
+    value = 2
+  }
+}
+
+// TODO: argocd 에 내 도메인 이름 붙이기
+# data "aws_route53_zone" "main" {
+#   name         = "practice-zzingo.net"
+#   private_zone = false          
+# }
+
+# data "aws_elbv2_load_balancer" "argocd_alb" {
+#   name = "argocd-alb"  # ALB의 이름으로 변경
+# }
+
+# resource "aws_route53_record" "argocd" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "argocd"
+#   type    = "CNAME"
+#   ttl     = 300
+
+#   records = [data.aws_elbv2_load_balancer.argocd_alb.dns_name]
+# }
+
 
 
 

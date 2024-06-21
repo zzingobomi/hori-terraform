@@ -3,7 +3,7 @@
 - kubectl 설치
   - https://kubernetes.io/ko/docs/tasks/tools/
 - k8s configure 셋팅
-  - aws eks --region <your-region> update-kubeconfig --name <your-cluster-name>
+  - aws eks update-kubeconfig --region <your-region> --name <your-cluster-name>
   - kubectl cluster-info
   - kubectl get pods --all-namespaces
 - kubectl 단축키 셋팅
