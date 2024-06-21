@@ -9,7 +9,7 @@ log() {
 
 log "User data script started"
 
-hostnamectl --static set-hostname ${cluster_name}-host
+hostnamectl --static set-hostname ${cluster_name}-bastion-ec2
 log "set hostname"
 
 # Config convenience
@@ -28,7 +28,6 @@ yum -y install tree jq git htop lynx
 log "Install Packages"
 
 # Install kubectl & helm
-#curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.25.7/2023-03-17/bin/linux/amd64/kubectl
 curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.29.3/2024-04-19/bin/linux/amd64/kubectl
 install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 curl -s https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
@@ -63,6 +62,10 @@ export PATH="$PATH:/root/.krew/bin"
 echo 'export PATH="$PATH:/root/.krew/bin"' >> /etc/profile
 log "Install krew"
 
+# Install krew plugin
+kubectl krew install ctx ns get-all df-pv # ktop mtail tree
+log "Install krew plugin"
+
 # Install kube-ps1
 echo 'source <(kubectl completion bash)' >> /etc/profile
 echo 'alias k=kubectl' >> /etc/profile
@@ -81,28 +84,11 @@ PS1='$(kube_ps1)'$PS1
 EOT
 log "Install kube-ps1"
 
-# Install krew plugin
-kubectl krew install ctx ns get-all  # ktop df-pv mtail tree
-log "Install krew plugin"
-
-# Install node-shell
-curl -LO https://github.com/kvaps/kubectl-node-shell/raw/master/kubectl-node_shell
-chmod +x ./kubectl-node_shell
-sudo mv ./kubectl-node_shell /usr/local/bin/kubectl-node_shell
-log "Install node-shell"
-
 # Install Docker
 amazon-linux-extras install docker -y
 systemctl start docker && systemctl enable docker
 log "Install Docker"
 
-# CLUSTER_NAME
-export CLUSTER_NAME=${cluster_name}
-echo "export CLUSTER_NAME=$CLUSTER_NAME" >> /etc/profile
-log "CLUSTER_NAME"
-
 # Create SSH Keypair
 ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
 log "Create SSH Keypair"
-
-log "User data script completed"

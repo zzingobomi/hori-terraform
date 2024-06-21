@@ -1,0 +1,47 @@
+# CLUSTER_NAME
+export CLUSTER_NAME=${cluster_name}
+echo "export CLUSTER_NAME=$CLUSTER_NAME" >> /etc/profile
+log "CLUSTER_NAME"
+
+# K8S Version
+export KUBERNETES_VERSION=${k8s_version}
+echo "export KUBERNETES_VERSION=$KUBERNETES_VERSION" >> /etc/profile
+log "K8S Version"
+
+# VPC & Subnet
+export VPCID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=$CLUSTER_NAME-vpc" | jq -r .Vpcs[].VpcId)
+echo "export VPCID=$VPCID" >> /etc/profile
+export PubSubnet1=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-vpc-public-${azs[0]}" --query "Subnets[0].[SubnetId]" --output text)
+export PubSubnet2=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-vpc-public-${azs[1]}" --query "Subnets[0].[SubnetId]" --output text)
+export PubSubnet3=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-vpc-public-${azs[2]}" --query "Subnets[0].[SubnetId]" --output text)
+echo "export PubSubnet1=$PubSubnet1" >> /etc/profile
+echo "export PubSubnet2=$PubSubnet2" >> /etc/profile
+echo "export PubSubnet3=$PubSubnet3" >> /etc/profile
+export PrivateSubnet1=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-vpc-private-${azs[0]}" --query "Subnets[0].[SubnetId]" --output text)
+export PrivateSubnet2=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-vpc-private-${azs[1]}" --query "Subnets[0].[SubnetId]" --output text)
+export PrivateSubnet3=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-vpc-private-${azs[2]}" --query "Subnets[0].[SubnetId]" --output text)
+echo "export PrivateSubnet1=$PrivateSubnet1" >> /etc/profile
+echo "export PrivateSubnet2=$PrivateSubnet2" >> /etc/profile
+echo "export PrivateSubnet3=$PrivateSubnet3" >> /etc/profile
+log "VPC & Subnet"
+
+# Create EKS Cluster & Nodegroup 
+eksctl create cluster --name $CLUSTER_NAME --region=$AWS_DEFAULT_REGION --nodegroup-name=ng1 --node-type=${instance_type} --nodes ${node_count} --node-volume-size=${volume_size} --vpc-public-subnets "$PubSubnet1","$PubSubnet2","$PubSubnet3" --version ${k8s_version} --ssh-access --ssh-public-key /root/.ssh/id_rsa.pub --with-oidc --external-dns-access --full-ecr-access --dry-run > myeks.yaml
+sed -i 's/certManager: false/certManager: true/g' myeks.yaml
+sed -i 's/ebs: false/ebs: true/g' myeks.yaml
+cat <<EOT >> myeks.yaml
+addons:
+- name: vpc-cni # no version is specified so it deploys the default version
+  version: latest
+  attachPolicyARNs:
+    - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+- name: kube-proxy
+  version: latest
+- name: coredns
+  version: latest
+EOT
+nohup eksctl create cluster -f myeks.yaml --verbose 4 --kubeconfig "/root/.kube/config" 1> /root/create-eks.log 2>&1 &
+echo 'cloudinit End!'
+log "Create EKS Cluster & Nodegroup"
+
+log "User data script completed"
