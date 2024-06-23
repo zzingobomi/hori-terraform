@@ -14,3 +14,8 @@ variable "hosted_zone_id" {
   description = "Hosted Zone Id"
   type        = string  
 }
+
+variable "mysql_password" {
+  description = "MySQL Password"
+  type        = string  
+}

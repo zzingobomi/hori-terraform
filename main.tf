@@ -34,6 +34,12 @@ locals {
   name   = var.cluster_name
   region = var.aws_region
 
+  allowed_ip_ranges = [
+    "125.180.153.109/32",     // zzingo home
+    "211.192.203.180/32"      // office
+  ]
+  key_name = "zzingo_key"
+
   tags = {
     Environment = "dev"
     Terraform   = "true"
@@ -140,15 +146,16 @@ module "eks" {
 
   eks_managed_node_groups = {
     default = {
-      name = "${local.name}-node-group"
-      instance_types = ["t3.medium"]
-      max_size       = 3
-      min_size       = 3
-      desired_size   = 3
-      iam_role_name = "${local.name}-node-group-eks-node-group"
+      name                     = "${local.name}-node-group"
+      instance_types           = ["t3.medium"]
+      max_size                 = 3
+      min_size                 = 3
+      desired_size             = 3
+      iam_role_name            = "${local.name}-node-group-eks-node-group"
       iam_role_use_name_prefix = false
       iam_role_additional_policies = {
         "${local.name}ExternalDNSPolicy" = aws_iam_policy.external_dns_policy.arn
+        AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
       }
     }
   }
@@ -217,6 +224,44 @@ module "eks_blueprints_addons" {
 # Supporting Resources
 ################################################################################
 
+resource "aws_security_group" "bastion_sg" {
+  name        = "bastion-sg"
+  description = "Security group for bastion host"
+  
+  vpc_id = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = local.allowed_ip_ranges
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_instance" "bastion_host" {
+  ami             = "ami-0ebb3f23647161078"
+  instance_type   = "t2.micro"
+  key_name        = local.key_name
+  subnet_id       = module.vpc.public_subnets[0]
+  security_groups = [aws_security_group.bastion_sg.id]
+
+  associate_public_ip_address = true
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "bastion-host"
+    }
+  )
+}
+
 resource "helm_release" "argocd_image_updater" {
   name             = "argocd-image-updater"
   chart            = "./argocd-image-updater"
@@ -228,4 +273,28 @@ resource "helm_release" "kube_ops_view" {
   name             = "kube-ops-view"
   chart            = "./kube-ops-view"
   namespace        = "kube-system"  
+}
+
+resource "helm_release" "mysql_operator" {
+  name             = "mysql-operator"
+  chart            = "./mysql-operator"
+  namespace        = "mysql-operator"
+  create_namespace = true  
+}
+
+resource "helm_release" "mysql_cluster" {
+  name             = "mysql-cluster"
+  chart            = "./mysql-innodbcluster"
+  namespace        = "mysql-cluster"
+  create_namespace = true  
+
+  set {
+    name  = "credentials.root.password"
+    value = var.mysql_password
+  }
+
+  set {
+    name  = "tls.useSelfSigned"
+    value = "true"
+  }
 }
