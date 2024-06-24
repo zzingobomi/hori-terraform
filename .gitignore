@@ -33,8 +33,11 @@ override.tf.json
 # example: *tfplan*
 
 # Ignore CLI configuration files
-.terraformrc
-terraform.rc
+eks/.terraformrc
+eks/terraform.rc
+
+application/.terraformrc
+application/terraform.rc
 
 # VS Code
 .vscode
