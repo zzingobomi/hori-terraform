@@ -1,0 +1,5 @@
+grafana:
+  service:
+    type: LoadBalancer
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: grafana.practice-zzingo.net

@@ -34,11 +34,10 @@ locals {
   name   = var.cluster_name
   region = var.aws_region
 
-  allowed_ip_ranges = [
-    "125.180.153.109/32",     // zzingo home
-    "211.192.203.180/32"      // office
-  ]
-  key_name = "zzingo_key"
+  # allowed_ip_ranges = [
+  #   "125.180.153.109/32",     // zzingo home  
+  # ]
+  # key_name = "zzingo_key"
 
   tags = {
     Environment = "dev"
@@ -209,12 +208,25 @@ module "eks_blueprints_addons" {
 
   # Add-ons
   enable_aws_load_balancer_controller    = true
+
   enable_metrics_server                  = true
+
   enable_kube_prometheus_stack           = true
+  kube_prometheus_stack = {    
+    values = [templatefile("${path.module}/custom-values/grafana/values-dev.yaml", {})]
+  }
+
   enable_external_dns                    = true
+
   enable_cert_manager                    = true
+
   enable_argocd                          = true
+  argocd = {    
+    values = [templatefile("${path.module}/custom-values/argocd/values-dev.yaml", {})]
+  }
+
   enable_argo_rollouts                   = true
+
   cert_manager_route53_hosted_zone_arns  = ["arn:aws:route53:::hostedzone/${var.hosted_zone_id}"]  
 
   tags = local.tags
@@ -224,67 +236,67 @@ module "eks_blueprints_addons" {
 # Supporting Resources
 ################################################################################
 
-resource "aws_security_group" "bastion_sg" {
-  name        = "bastion-sg"
-  description = "Security group for bastion host"
+# resource "aws_security_group" "bastion_sg" {
+#   name        = "bastion-sg"
+#   description = "Security group for bastion host"
   
-  vpc_id = module.vpc.vpc_id
+#   vpc_id = module.vpc.vpc_id
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = local.allowed_ip_ranges
-  }
+#   ingress {
+#     from_port   = 22
+#     to_port     = 22
+#     protocol    = "tcp"
+#     cidr_blocks = local.allowed_ip_ranges
+#   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+# }
 
-resource "aws_instance" "bastion_host" {
-  ami             = "ami-0ebb3f23647161078"
-  instance_type   = "t2.micro"
-  key_name        = local.key_name
-  subnet_id       = module.vpc.public_subnets[0]
-  security_groups = [aws_security_group.bastion_sg.id]
+# resource "aws_instance" "bastion_host" {
+#   ami             = "ami-0ebb3f23647161078"
+#   instance_type   = "t2.micro"
+#   key_name        = local.key_name
+#   subnet_id       = module.vpc.public_subnets[0]
+#   security_groups = [aws_security_group.bastion_sg.id]
 
-  associate_public_ip_address = true
+#   associate_public_ip_address = true
 
-  tags = merge(
-    local.tags,
-    {
-      Name = "bastion-host"
-    }
-  )
-}
+#   tags = merge(
+#     local.tags,
+#     {
+#       Name = "bastion-host"
+#     }
+#   )
+# }
 
 resource "helm_release" "argocd_image_updater" {
   name             = "argocd-image-updater"
-  chart            = "./argocd-image-updater"
+  chart            = "${path.module}/helm/argocd-image-updater"
   namespace        = "argocd"
   create_namespace = true
 }
 
 resource "helm_release" "kube_ops_view" {
   name             = "kube-ops-view"
-  chart            = "./kube-ops-view"
-  namespace        = "kube-system"  
+  chart            = "${path.module}/helm/kube-ops-view"
+  namespace        = "kube-system"
 }
 
 resource "helm_release" "mysql_operator" {
   name             = "mysql-operator"
-  chart            = "./mysql-operator"
+  chart            = "${path.module}/helm/mysql-operator"
   namespace        = "mysql-operator"
   create_namespace = true  
 }
 
 resource "helm_release" "mysql_cluster" {
   name             = "mysql-cluster"
-  chart            = "./mysql-innodbcluster"
+  chart            = "${path.module}/helm/mysql-innodbcluster"
   namespace        = "mysql-cluster"
   create_namespace = true  
 

@@ -18,29 +18,23 @@
 
 ### Post apply
 
-1. Argo CD 외부 노출
+1. Argo CD 비밀번호 
 
-- kubectl patch svc argo-cd-argocd-server -n argocd -p '{"spec":{"type":"LoadBalancer"}}'
-- kubectl annotate service argo-cd-argocd-server -n argocd "external-dns.alpha.kubernetes.io/hostname=argocd.practice-zzingo.net"
 - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
-2. Grafana 외부 노출
+2. Grafana 비밀번호
 
-- kubectl patch svc kube-prometheus-stack-grafana -n kube-prometheus-stack -p '{"spec":{"type":"LoadBalancer"}}'
-- kubectl annotate service kube-prometheus-stack-grafana -n kube-prometheus-stack "external-dns.alpha.kubernetes.io/hostname=grafana.practice-zzingo.net"
 - kubectl get secrets kube-prometheus-stack-grafana --namespace kube-prometheus-stack -o jsonpath="{.data.admin-password}" | base64 -d
 
-3. kube-ops-view 외부 노출
+3. kube-ops-view 로컬 접속
 
-- kubectl patch svc kube-ops-view -n kube-system -p '{"spec":{"type":"LoadBalancer"}}'
-- kubectl annotate service kube-ops-view -n kube-system "external-dns.alpha.kubernetes.io/hostname=kubeopsview.practice-zzingo.net"
-- http://kubeopsview.practice-zzingo.net:8080/
+- kubectl port-forward -n kube-system svc/kube-ops-view 18080:8080 (포트번호 임의 설정 가능)
 
 4. mysql database 접속
 
-- kubectl run --rm -it myshell --image=container-registry.oracle.com/mysql/community-operator -- mysqlsh
-- MySQL> \connect root@mysql-cluster.mysql-cluster.svc.cluster.local
-- MySQL> CREATE DATABASE api
+- kubectl port-forward -n mysql-cluster svc/mysql-cluster 33060:3306 (포트번호 임의 설정 가능)
+- mysql client 접속 프로그램으로 접속 (127.0.0.1:33060)
+- api 데이터베이스 만들기
 
 5. ArgoCD 어플리케이션 셋팅
 
@@ -60,15 +54,15 @@
 
 ### TODO
 
-- helm chart eks, onpromise 용 만들기 및 경로 변경
-- 블루그린 배포
+- https 적용
+
+- 어떻게 단계를 나눠서 실행할 것인가? 
+  1. eks 를 구축하는 단계
+  2. application 을 argocd 에 배포하는 단계
+
 - loki 설치
-- post apply 자동화..
-- bastion host 설정
-  - https://github.com/mysql/mysql-operator?tab=readme-ov-file#using-port-forwarding
-  - mysql 을 로컬에서 접속하려면 port-forwad 를 해줘야 하는데 이미 있다고 에러가 나옴
-  - 그래서 ssh tunneling 을 통해 dbeaver 로 접속이 불가능한거 같음
-  - 해결방안 아직 모름
+- dev, prod workspace 나누기
+- post apply 자동화 더 자동화 가능?
 
 ### Prerequisites
 

@@ -3,6 +3,6 @@ output "configure_kubectl" {
   value       = "aws eks --region ${local.region} update-kubeconfig --name ${module.eks.cluster_name}"
 }
 
-output "bastion_public_ip" {
-  value = aws_instance.bastion_host.public_ip
-}
+# output "bastion_public_ip" {
+#   value = aws_instance.bastion_host.public_ip
+# }
