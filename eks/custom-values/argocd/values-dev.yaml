@@ -1,5 +1,13 @@
-server:
-  service:
-    type: LoadBalancer
+server:  
+  ingress:
+    enabled: true
     annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: "ip"
+      kubernetes.io/ingress.class: "alb"
       external-dns.alpha.kubernetes.io/hostname: argocd.practice-zzingo.net
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:ap-northeast-2:211125714133:certificate/90e4bdda-cd40-450e-899d-c9fcb7dd3188"
+      alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'  
+      alb.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    ingressClassName: alb    

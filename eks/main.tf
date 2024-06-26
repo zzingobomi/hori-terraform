@@ -55,9 +55,13 @@ module "vpc" {
   name = "${local.name}-vpc"
   cidr = "192.168.0.0/16"
 
-  azs             = ["ap-northeast-2a", "ap-northeast-2b", "ap-northeast-2c"]
-  public_subnets  = ["192.168.1.0/24", "192.168.2.0/24", "192.168.3.0/24"]
-  private_subnets = ["192.168.11.0/24", "192.168.12.0/24", "192.168.13.0/24"]
+  # azs             = ["ap-northeast-2a", "ap-northeast-2b", "ap-northeast-2c"]
+  # public_subnets  = ["192.168.1.0/24", "192.168.2.0/24", "192.168.3.0/24"]
+  # private_subnets = ["192.168.11.0/24", "192.168.12.0/24", "192.168.13.0/24"]
+
+  azs             = ["ap-northeast-2a", "ap-northeast-2b"]
+  public_subnets  = ["192.168.1.0/24", "192.168.2.0/24"]
+  private_subnets = ["192.168.11.0/24", "192.168.12.0/24"]
 
   enable_dns_support      = true
   enable_dns_hostnames    = true
@@ -146,10 +150,11 @@ module "eks" {
   eks_managed_node_groups = {
     default = {
       name                     = "${local.name}-node-group"
-      instance_types           = ["t3.medium"]
-      max_size                 = 3
-      min_size                 = 3
-      desired_size             = 3
+      #instance_types           = ["t3.medium"]
+      instance_types           = ["m5.large"]
+      max_size                 = 2
+      min_size                 = 2
+      desired_size             = 2
       iam_role_name            = "${local.name}-node-group-eks-node-group"
       iam_role_use_name_prefix = false
       iam_role_additional_policies = {
@@ -200,6 +205,12 @@ module "eks_blueprints_addons" {
     }
     vpc-cni = {
       most_recent = true
+      configuration_values = jsonencode({
+        env = {
+          ENABLE_PREFIX_DELEGATION = "true"
+          WARM_PREFIX_TARGET       = "1"
+        }
+      })
     }
     kube-proxy = {
       most_recent = true
@@ -309,4 +320,11 @@ resource "helm_release" "mysql_cluster" {
     name  = "tls.useSelfSigned"
     value = "true"
   }
+}
+
+resource "helm_release" "loki_stack" {
+  name             = "loki-stack"
+  chart            = "${path.module}/helm/loki-stack"
+  namespace        = "loki-stack"
+  create_namespace = true  
 }

@@ -1,6 +1,6 @@
 terraform {  
   required_providers {
-    argocd = {
+    argocd = {      
       source = "oboukili/argocd"
       version = "6.1.1"
     }
@@ -8,17 +8,16 @@ terraform {
 }
 
 provider "argocd" {
-  server_addr = "argocd.practice-zzingo.net"
+  server_addr = "argocd.practice-zzingo.net:443"
   username    = "admin"
-  password    = "xWm1-b4xQNyXCgdO"
+  password    = var.argocd_password
 }
 
 ################################################################################
 # Argo Application
 ################################################################################
 
-resource "argocd_application" "hori" {
-  depends_on = [ module.eks, module.eks_blueprints_addons ]
+resource "argocd_application" "app" {  
   metadata {
     name = "hori"
     namespace = "argocd"
@@ -57,7 +56,7 @@ resource "argocd_application" "hori" {
         prune       = true
         self_heal   = true
         allow_empty = false
-      }
+      }      
       sync_options = ["CreateNamespace=true"]
     }
   }
