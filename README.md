@@ -78,4 +78,5 @@ $ terraform apply
 - application 로드밸런서는 terraform 에서 만든게 아니라 destroy 할때 제대로 못지우는듯
 - HPA 적용
 - Karpenter 적용
+- argo event 로 슬랙 노티 적용
 
