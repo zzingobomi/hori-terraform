@@ -76,5 +76,6 @@ $ terraform apply
 - 인증서 테스트 후 github helm 에서 arn 지우기
 - api database 자동 생성 가능? 
 - application 로드밸런서는 terraform 에서 만든게 아니라 destroy 할때 제대로 못지우는듯
-
+- HPA 적용
+- Karpenter 적용
 
